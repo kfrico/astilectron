@@ -41,6 +41,19 @@ function onReady () {
         client.write(consts.targetIds.app, consts.eventNames.displayEventRemoved, {displays: {all: screen.getAllDisplays(), primary: screen.getPrimaryDisplay()}})
     })
 
+    const session = electron.session
+
+    session.defaultSession.cookies.on('changed', (event, cookie, cause, removed) => {
+      if (removed) {
+        console.log(`Cookie removed: ${cookie.name}`);
+      } else {
+        client.write(consts.targetIds.app, consts.eventNames.sessionEventChangedCookie,{
+          cookieName: cookie.name,
+          cookieValue: cookie.value
+        });
+      }
+    });
+
     const powerMonitor = electron.powerMonitor
     // Listen to power events
     powerMonitor.on('suspend', function() {
@@ -207,6 +220,23 @@ function onReady () {
             elements[json.targetID].loadExtension(json.path).then(() => {
                 client.write(json.targetID, consts.eventNames.sessionEventLoadedExtension)
             })
+            break;
+            case consts.eventNames.sessionCmdGetCookie:
+            session.defaultSession.cookies.get({})
+              .then((cookies) => {
+                const targetCookie = cookies.find(cookie => cookie.name === json.cookieName);
+                if (targetCookie) {
+                  client.write(json.targetID, consts.eventNames.sessionEventGetCookie,{
+                    cookieName: targetCookie.name,
+                    cookieValue: targetCookie.value
+                  });
+                  console.log(targetCookie);
+                } else {
+                  console.log('Cookie not found');
+                }
+              }).catch((error) => {
+                console.log(error);
+              });
             break;
 
             // Sub menu
